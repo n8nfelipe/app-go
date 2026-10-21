@@ -1,0 +1,6 @@
+
+
+GET http://localhost:8081/clients
+Content-Type: application/json  
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImZlbGlwZSIsImV4cCI6MTc5MjYwNjQyMiwiaWF0IjoxNzkyNTk5MjIyfQ.ypQ4077Q95ONB2AeakiMw-wJKZqH-pldDkq-OGRp5E8
+

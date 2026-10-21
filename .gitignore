@@ -1,0 +1,37 @@
+# Binários
+/app
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+cmd/app
+cmd/*/app
+
+# Testes
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Dependências
+/vendor/
+
+# Variáveis de ambiente e segredos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDEs e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs e tmp
+*.log
+tmp/
