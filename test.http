@@ -1,6 +1,34 @@
+### Login (obtenha o token)
+POST http://localhost:8081/login
+Content-Type: application/json
 
+{ "username": "seu-usuario", "password": "sua-senha" }
 
-GET http://localhost:8081/clients
-Content-Type: application/json  
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImZlbGlwZSIsImV4cCI6MTc5MjYwNjQyMiwiaWF0IjoxNzkyNTk5MjIyfQ.ypQ4077Q95ONB2AeakiMw-wJKZqH-pldDkq-OGRp5E8
+### Listar clientes
+GET http://localhost:8081/clients/
+Content-Type: application/json
+Authorization: Bearer <cole-o-token-aqui>
 
+### Buscar cliente por ID
+GET http://localhost:8081/clients/1
+Content-Type: application/json
+Authorization: Bearer <cole-o-token-aqui>
+
+### Criar cliente
+POST http://localhost:8081/clients/
+Content-Type: application/json
+Authorization: Bearer <cole-o-token-aqui>
+
+{ "name": "Empresa X", "email": "contato@empresax.com" }
+
+### Atualizar cliente
+PUT http://localhost:8081/clients/1
+Content-Type: application/json
+Authorization: Bearer <cole-o-token-aqui>
+
+{ "name": "Empresa X Ltda", "email": "contato@empresax.com" }
+
+### Excluir cliente
+DELETE http://localhost:8081/clients/1
+Content-Type: application/json
+Authorization: Bearer <cole-o-token-aqui>

@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+	"github.com/n8nfelipe/app-go.git/internal/apperror"
 	"github.com/n8nfelipe/app-go.git/internal/model"
 	"github.com/n8nfelipe/app-go.git/internal/usecase"
 	"github.com/n8nfelipe/app-go.git/middleware"
@@ -17,47 +20,40 @@ func NewUserController(userUseCase *usecase.UserUseCase) *UserController {
 	}
 }
 
-type LoginResponse struct {
-	Token string      `json:"token"`
-	User  *model.User `json:"user"`
-}
-
 func (uc *UserController) Login(ctx *gin.Context) {
 	var loginData struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
 	if err := ctx.ShouldBindJSON(&loginData); err != nil {
-		ctx.JSON(400, gin.H{"error": "Dados de login inválidos"})
+		respondError(ctx, apperror.New(apperror.CodeInvalidInput, "Dados de login inválidos", err), "validando login")
 		return
 	}
 
-	username := loginData.Username
-	password := loginData.Password
-	user, err := uc.UserUseCase.GetByUsernameAndPassword(username, password)
+	user, err := uc.UserUseCase.GetByUsernameAndPassword(loginData.Username, loginData.Password)
 	if err != nil {
-		ctx.JSON(400, gin.H{"error": "Credenciais inválidas"})
+		respondError(ctx, err, "autenticando usuário")
 		return
 	}
 	token, err := middleware.GenerateToken(user.ID, user.Username)
 	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Erro ao gerar token"})
+		respondError(ctx, apperror.Wrap(err, "gerando token"), "gerar token")
 		return
 	}
-	ctx.JSON(200, gin.H{"token": token, "userName": user.Username})
+	ctx.JSON(http.StatusOK, gin.H{"token": token, "userName": user.Username})
 }
 
 func (uc *UserController) Create(ctx *gin.Context) {
 	var user model.User
 	if err := ctx.ShouldBindJSON(&user); err != nil {
-		ctx.JSON(400, gin.H{"error": "Dados do usuário inválidos"})
+		respondError(ctx, apperror.New(apperror.CodeInvalidInput, "Dados do usuário inválidos", err), "validando usuário")
 		return
 	}
 	id, err := uc.UserUseCase.Create(user)
 	if err != nil {
-		ctx.JSON(400, gin.H{"error": "Failed to create user"})
+		respondError(ctx, err, "criar usuário")
 		return
 	}
-	ctx.JSON(201, gin.H{"userId": id})
+	ctx.JSON(http.StatusCreated, gin.H{"userId": id})
 }
