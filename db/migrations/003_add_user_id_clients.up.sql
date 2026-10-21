@@ -1,0 +1,11 @@
+ALTER TABLE clients ADD COLUMN user_id BIGINT REFERENCES users(id) ON DELETE CASCADE;
+
+UPDATE clients SET user_id = (SELECT MIN(id) FROM users)
+WHERE user_id IS NULL AND EXISTS (SELECT 1 FROM users);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM clients WHERE user_id IS NULL) THEN
+        ALTER TABLE clients ALTER COLUMN user_id SET NOT NULL;
+    END IF;
+END $$;

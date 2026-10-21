@@ -22,6 +22,7 @@ func GetRoutes(server *gin.Engine) {
 		protected.GET("/", clientController.GetClients)
 		protected.PUT("/:id", clientController.UpdateClient)
 		protected.POST("/", clientController.CreateClient)
+		protected.DELETE("/:id", clientController.DeleteClient)
 	}
 
 }

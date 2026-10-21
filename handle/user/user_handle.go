@@ -6,6 +6,7 @@ import (
 	"github.com/n8nfelipe/app-go.git/internal/model"
 	"github.com/n8nfelipe/app-go.git/internal/repositorie"
 	"github.com/n8nfelipe/app-go.git/internal/usecase"
+	"github.com/n8nfelipe/app-go.git/middleware"
 )
 
 func GetRoutes(server *gin.Engine) {
@@ -14,6 +15,6 @@ func GetRoutes(server *gin.Engine) {
 	userUseCase := usecase.NewUserUseCase(userRepository)
 	userController := controller.NewUserController(userUseCase)
 
-	server.POST("/login", userController.Login)
-	server.POST("/users", userController.Create)
+	server.POST("/login", middleware.RateLimit(), userController.Login)
+	server.POST("/users", middleware.RateLimit(), userController.Create)
 }

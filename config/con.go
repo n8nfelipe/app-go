@@ -10,7 +10,8 @@ import (
 )
 
 type Config struct {
-	DB DbConfig `mapstructure:"db"`
+	DB     DbConfig     `mapstructure:"db"`
+	Server ServerConfig `mapstructure:"server"`
 }
 
 type DbConfig struct {
@@ -21,6 +22,10 @@ type DbConfig struct {
 	DBName   string `mapstructure:"dbname"`
 }
 
+type ServerConfig struct {
+	Port string `mapstructure:"port"`
+}
+
 func keys() []string {
 	return []string{
 		"db.host",
@@ -28,6 +33,7 @@ func keys() []string {
 		"db.user",
 		"db.password",
 		"db.dbname",
+		"server.port",
 	}
 }
 
@@ -37,6 +43,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("db.user", "postgres")
 	viper.SetDefault("db.password", "password")
 	viper.SetDefault("db.dbname", "mydb")
+	viper.SetDefault("server.port", "8081")
 
 	viper.SetEnvPrefix("APP")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

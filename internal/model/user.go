@@ -7,45 +7,40 @@ import (
 )
 
 type User struct {
-	ID       uint   `json:"id" gorm:"primaryKey"`
-	Username string `json:"username" gorm:"unique;not null"`
-	Password string `json:"password" gorm:"not null"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func (c *User) Create(user User) (uint, error) {
-	db, err := db.OpenConnection()
+	conn, err := db.Pool()
 	if err != nil {
-		log.Printf("Failed to connect to database: %v", err)
+		log.Printf("falha ao obter pool de conexões: %v", err)
 		return 0, err
 	}
-	defer db.Close()
 
 	sql := "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id"
 	var id uint
-	err = db.QueryRow(sql, user.Username, user.Password).Scan(&id)
+	err = conn.QueryRow(sql, user.Username, user.Password).Scan(&id)
 	if err != nil {
-		log.Printf("Failed to insert user: %v", err)
+		log.Printf("falha ao inserir usuário: %v", err)
 		return 0, err
 	}
 	return id, nil
 }
 
-func (c *User) GetByUsername(username string) *User {
-	db, err := db.OpenConnection()
+func (c *User) GetByUsername(username string) (*User, error) {
+	conn, err := db.Pool()
 	if err != nil {
-		log.Printf("Failed to connect to database: %v", err)
-		return nil
+		log.Printf("falha ao obter pool de conexões: %v", err)
+		return nil, err
 	}
-	defer db.Close()
 
 	sql := "SELECT id, username, password FROM users WHERE username = $1"
 
-	row := db.QueryRow(sql, username)
-
-	err = row.Scan(&c.ID, &c.Username, &c.Password)
+	err = conn.QueryRow(sql, username).Scan(&c.ID, &c.Username, &c.Password)
 	if err != nil {
-		log.Printf("Failed to query user: %v", err)
-		return nil
+		return nil, err
 	}
-	return c
+	return c, nil
 }

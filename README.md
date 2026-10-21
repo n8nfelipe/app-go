@@ -13,6 +13,7 @@ API REST de gestão de clientes com autenticação JWT, escrita em Go (Gin) e Po
 - [Endpoints](#endpoints)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Migrations](#migrations)
+- [Testes](#testes)
 - [Testes manuais](#testes-manuais)
 - [Comandos úteis](#comandos-úteis)
 
@@ -47,6 +48,7 @@ internal/
   usecase/     → regras de negócio (ex.: validar credenciais, hashear senha)
   repositorie/ → queries SQL
   model/       → structs e persistência
+  apperror/    → interface e categorias de erros compartilhadas entre camadas
   security/    → Argon2id (hash/verify)
 config/        → carga de configuração (env + defaults)
 db/            → conexão + migrations
@@ -58,6 +60,10 @@ Fluxo de uma requisição:
 ```
 HTTP → middleware (JWT) → controller → usecase → repository → PostgreSQL
 ```
+
+Erros de persistência são classificados no repositório e propagados pelo usecase
+com a categoria preservada. O controller converte essas categorias em status HTTP
+e mensagens públicas sem expor detalhes internos.
 
 ## Pré-requisitos
 
@@ -99,6 +105,7 @@ Todas usam o prefixo `APP_` (ex.: `db.host` → `APP_DB_HOST`), com defaults ent
 | `APP_DB_USER`       | Usuário do banco                   | `postgres`  |
 | `APP_DB_PASSWORD`   | Senha do banco                     | `password`  |
 | `APP_DB_DBNAME`     | Nome do banco                      | `mydb`      |
+| `APP_SERVER_PORT`   | Porta do servidor HTTP             | `8081`      |
 | `JWT_SECRET`        | Segredo de assinatura do token JWT | *(obrigatório)* |
 
 Exemplo de `.env`:
@@ -123,16 +130,22 @@ O `docker-compose.yml` usa as mesmas variáveis (`APP_DB_*`) para criar o contai
 | `POST` | `/login`   | Autentica e retorna o token JWT   |
 | `POST` | `/users`   | Cria usuário (senha hasheada)     |
 
+> `/login` e `/users` têm **rate limit por IP** (responde `429` após estourar o
+> limite).
+
 ### Protegidos (header `Authorization: Bearer <token>`)
 
 | Método | Rota           | Descrição                 |
 | ------ | -------------- | ------------------------- |
-| `GET`  | `/clients/`    | Lista todos os clientes   |
+| `GET`  | `/clients/`    | Lista os clientes do usuário do token |
 | `GET`  | `/clients/:id` | Busca cliente por ID      |
 | `POST` | `/clients/`    | Cria um cliente           |
 | `PUT`  | `/clients/:id` | Atualiza um cliente       |
+| `DELETE` | `/clients/:id` | Exclui um cliente       |
 
 > Sem token (ou com token expirado) as rotas de clientes respondem `401`.
+> As rotas de clientes são **escopadas pelo usuário do token**: um usuário só
+> enxerga e altera os clientes criados por ele (`clients.user_id`).
 
 ### Corpos das requisições
 
@@ -191,7 +204,7 @@ curl http://localhost:8081/clients/ -H "Authorization: Bearer $TOKEN"
 ```
 .
 ├── cmd/
-│   ├── main.go            # servidor HTTP (porta 8081)
+│   ├── main.go            # servidor HTTP (porta via APP_SERVER_PORT)
 │   └── migrate/main.go    # CLI: up | down | version
 ├── config/con.go          # Viper + godotenv
 ├── db/
@@ -207,7 +220,7 @@ curl http://localhost:8081/clients/ -H "Authorization: Bearer $TOKEN"
 │   ├── repositorie/       # acesso a dados
 │   ├── security/          # Argon2id
 │   └── usecase/           # regras de negócio
-├── middleware/autenticacao.go  # geração e validação do JWT
+├── middleware/            # JWT (autenticacao.go) e rate limit (ratelimit.go)
 ├── docker-compose.yml     # PostgreSQL 16
 ├── test.http              # exemplos para REST Client
 └── go.mod / go.sum
@@ -226,8 +239,28 @@ CLI em `cmd/migrate`, com arquivos em `db/migrations/` no formato
 
 Tabelas criadas:
 
-- **clients**: `id`, `name`, `email` (unique), `created_at`
+- **clients**: `id`, `name`, `email` (unique), `created_at`, `user_id` (dono, FK → `users`)
 - **users**: `id`, `username` (unique), `password` (hash Argon2id), `created_at`
+
+## Testes
+
+Testes unitários com **mocks manuais** dos repositórios (interfaces em
+`internal/usecase`) e `testify` para asserções:
+
+| Pacote                 | Cobre                                              |
+| ---------------------- | -------------------------------------------------- |
+| `internal/usecase`     | regras de negócio de clients e users (mock de repo) |
+| `internal/security`    | hash/verificação Argon2id                          |
+| `middleware`           | geração e validação do JWT (rotas 401/200)         |
+| `config`               | carga de variáveis e defaults                      |
+
+```bash
+go test ./...        # roda todos
+go test ./internal/usecase -v   # um pacote específico
+```
+
+> `db/migrate` foi validado manualmente contra o Postgres do docker-compose
+> (`up`, `down`, `version`).
 
 ## Testes manuais
 
@@ -239,6 +272,7 @@ O arquivo [`test.http`](./test.http) contém exemplos para a extensão
 
 ```bash
 go run ./cmd/main.go        # sobe a API
+go test ./...               # testes unitários
 go vet ./...                # análise estática
 gofmt -w .                  # formata o código
 docker compose up -d db     # sobe só o banco

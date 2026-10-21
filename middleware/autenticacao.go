@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,8 +12,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Chave secreta usada para assinar os tokens (guarde em variáveis de ambiente na vida real!)
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+// Chave secreta usada para assinar os tokens (lida da env a cada uso)
+func jwtSecretKey() ([]byte, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return nil, errors.New("JWT_SECRET não definido")
+	}
+	return []byte(secret), nil
+}
 
 // CustomClaims define os dados que serão guardados dentro do Token (Payload)
 type CustomClaims struct {
@@ -35,7 +42,11 @@ func GenerateToken(userID uint, username string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	secret, err := jwtSecretKey()
+	if err != nil {
+		return "", err
+	}
+	return token.SignedString(secret)
 }
 
 // ----------------------------------------------------
@@ -43,6 +54,13 @@ func GenerateToken(userID uint, username string) (string, error) {
 // ----------------------------------------------------
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		secret, err := jwtSecretKey()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Configuração de autenticação inválida no servidor"})
+			c.Abort()
+			return
+		}
+
 		// 1. Extrai o cabeçalho Authorization
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -53,7 +71,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// 2. Verifica o formato "Bearer <token>"
 		parts := strings.SplitN(authHeader, " ", 2)
-		if !(len(parts) == 2 && parts[0] == "Bearer") {
+		if len(parts) != 2 || parts[0] != "Bearer" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Formato de token inválido (Use 'Bearer <token>')"})
 			c.Abort()
 			return
@@ -67,7 +85,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("algoritmo de assinatura inesperado: %v", token.Header["alg"])
 			}
-			return jwtSecret, nil
+			return secret, nil
 		})
 
 		if err != nil || !token.Valid {

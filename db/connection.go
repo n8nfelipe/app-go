@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"sync"
+	"time"
 
 	_ "github.com/lib/pq" // Importa o driver do PostgreSQL
 	"github.com/n8nfelipe/app-go.git/config"
@@ -23,4 +25,27 @@ func OpenConnection() (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+var (
+	poolOnce sync.Once
+	poolDB   *sql.DB
+	poolErr  error
+)
+
+// Pool retorna a conexão compartilhada da aplicação, com pool de conexões.
+// Diferente de OpenConnection, não deve ser fechada pelos chamadores.
+func Pool() (*sql.DB, error) {
+	poolOnce.Do(func() {
+		conn, err := OpenConnection()
+		if err != nil {
+			poolErr = err
+			return
+		}
+		conn.SetMaxOpenConns(20)
+		conn.SetMaxIdleConns(5)
+		conn.SetConnMaxLifetime(30 * time.Minute)
+		poolDB = conn
+	})
+	return poolDB, poolErr
 }
